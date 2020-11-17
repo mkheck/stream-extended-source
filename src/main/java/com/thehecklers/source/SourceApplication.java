@@ -7,6 +7,7 @@ import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.cloud.function.context.PollableBean;
 import org.springframework.cloud.stream.annotation.EnableBinding;
 import org.springframework.cloud.stream.messaging.Source;
 import org.springframework.context.annotation.Bean;
@@ -15,6 +16,7 @@ import org.springframework.messaging.support.MessageBuilder;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.web.reactive.function.client.WebClient;
+import reactor.core.publisher.Flux;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -30,8 +32,7 @@ public class SourceApplication {
 
 }
 
-//@Configuration
-
+/*
 @EnableBinding(Source.class)
 @EnableScheduling
 @RequiredArgsConstructor
@@ -59,23 +60,38 @@ class PositionFeed {
         acList.clear();
     }
 }
+*/
 
-/*	@Bean
-	Supplier<List<Aircraft>> sendPositions() {
-		return () -> {
-			List<Aircraft> acList = client.get()
-					.retrieve()
-					.bodyToFlux(Aircraft.class)
-					.filter(ac -> !ac.getReg().isEmpty())
-					.toStream()
-					.collect(Collectors.toList());
+@Configuration
+class PositionFeed {
+    private final WebClient client = WebClient.create("http://localhost:7634/aircraft");
 
-			acList.forEach(System.out::println);
+    /*
+        @Bean
+        Supplier<List<Aircraft>> sendPositions() {
+            return () -> {
+                List<Aircraft> acList = client.get()
+                        .retrieve()
+                        .bodyToFlux(Aircraft.class)
+                        .filter(ac -> !ac.getReg().isEmpty())
+                        .toStream()
+                        .collect(Collectors.toList());
 
-			return acList;
-		};
-	}*/
-//}
+                acList.forEach(System.out::println);
+
+                return acList;
+            };
+        }
+    */
+    @PollableBean
+    Supplier<Flux<Aircraft>> sendPositions() {
+        return () -> client.get()
+                .retrieve()
+                .bodyToFlux(Aircraft.class)
+                .filter(ac -> !ac.getReg().isEmpty())
+                .log();
+    }
+}
 
 @Data
 @JsonIgnoreProperties(ignoreUnknown = true)
